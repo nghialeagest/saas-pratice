@@ -1,5 +1,0 @@
-bin/
-*.db
-.env
-.idea/
-.vscode/

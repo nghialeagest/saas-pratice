@@ -3,11 +3,13 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"log/slog"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -33,18 +35,48 @@ import (
 
 var publicPrefixes = []string{"/healthz", "/v1/auth"}
 
+func defaultPorts(mod string) (string, string) {
+	switch strings.ToLower(mod) {
+	case "user":
+		return ":8081", ":9091"
+	case "note":
+		return ":8082", ":9092"
+	case "task":
+		return ":8083", ":9093"
+	case "tenant":
+		return ":8084", ":9094"
+	default:
+		return ":8080", ":9090"
+	}
+}
+
 func main() {
+	moduleFlag := flag.String("module", "", "Target module to run (user, note, task, tenant, all)")
+	flag.Parse()
+
+	targetModule := *moduleFlag
+	if targetModule == "" {
+		targetModule = env("MODULE", "all")
+	}
+	targetModule = strings.ToLower(targetModule)
+
+	serviceName := "saasbase"
+	if targetModule != "" && targetModule != "all" {
+		serviceName = "saasbase-" + targetModule
+	}
+
 	logger := observability.NewLogger(os.Stdout, slog.LevelInfo)
 	slog.SetDefault(logger)
 
-	_, shutdownTracer, err := observability.InitTracer("saasbase", nil)
+	_, shutdownTracer, err := observability.InitTracer(serviceName, nil)
 	if err != nil {
 		logger.Error("failed to initialize tracer", "error", err)
 	}
 
+	defaultHTTP, defaultGRPC := defaultPorts(targetModule)
 	dsn := env("DATABASE_DSN", "postgres://postgres:postgres@localhost:55432/saas?sslmode=disable")
-	httpAddr := env("HTTP_ADDR", ":8080")
-	grpcAddr := env("GRPC_ADDR", ":9090")
+	httpAddr := env("HTTP_ADDR", defaultHTTP)
+	grpcAddr := env("GRPC_ADDR", defaultGRPC)
 
 	provider := data.NewProvider(data.NewSharedConn(dsn), nil)
 	defer provider.Close()
@@ -72,15 +104,17 @@ func main() {
 		logger.Warn("enable rls warning", "error", err)
 	}
 
-	seedDefaultData(bootCtx, db, logger)
+	if targetModule == "all" || targetModule == "user" {
+		seedDefaultData(bootCtx, db, logger)
+	}
 
 	authz.MustHaveChecker()
 
-	httpSrv := &http.Server{Addr: httpAddr, Handler: newRouter()}
-	grpcSrv := newGRPCServer()
+	httpSrv := &http.Server{Addr: httpAddr, Handler: newRouter(targetModule)}
+	grpcSrv := newGRPCServer(targetModule)
 
 	go func() {
-		logger.Info("http server listening", "addr", httpAddr)
+		logger.Info("http server listening", "service", serviceName, "addr", httpAddr)
 		if err := httpSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Error("http server failed", "error", err)
 			os.Exit(1)
@@ -92,7 +126,7 @@ func main() {
 			logger.Error("failed to listen tcp", "error", err)
 			os.Exit(1)
 		}
-		logger.Info("grpc server listening", "addr", grpcAddr)
+		logger.Info("grpc server listening", "service", serviceName, "addr", grpcAddr)
 		if err := grpcSrv.Serve(lis); err != nil {
 			logger.Error("grpc server failed", "error", err)
 			os.Exit(1)
@@ -112,7 +146,12 @@ func main() {
 	grpcSrv.GracefulStop()
 }
 
-func newRouter() *gin.Engine {
+func newRouter(targetModule ...string) *gin.Engine {
+	mod := "all"
+	if len(targetModule) > 0 && targetModule[0] != "" {
+		mod = targetModule[0]
+	}
+
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 
@@ -158,6 +197,9 @@ func newRouter() *gin.Engine {
 
 	api := r.Group("/")
 	for _, m := range module.All() {
+		if mod != "" && mod != "all" && strings.ToLower(m.Name()) != mod {
+			continue
+		}
 		if reg, ok := m.(httpx.Registrar); ok {
 			reg.RegisterHTTP(api)
 		}
@@ -165,7 +207,12 @@ func newRouter() *gin.Engine {
 	return r
 }
 
-func newGRPCServer() *grpc.Server {
+func newGRPCServer(targetModule ...string) *grpc.Server {
+	mod := "all"
+	if len(targetModule) > 0 && targetModule[0] != "" {
+		mod = targetModule[0]
+	}
+
 	var sessionValidator authn.SessionValidator
 	if sv, err := module.Resolve[authn.SessionValidator](); err == nil {
 		sessionValidator = sv
@@ -179,6 +226,9 @@ func newGRPCServer() *grpc.Server {
 		grpcx.TenantUnaryInterceptor("/user.v1.AuthService/Login", "/user.v1.AuthService/Refresh"),
 	))
 	for _, m := range module.All() {
+		if mod != "" && mod != "all" && strings.ToLower(m.Name()) != mod {
+			continue
+		}
 		if reg, ok := m.(grpcx.Registrar); ok {
 			reg.RegisterGRPC(s)
 		}
@@ -193,4 +243,3 @@ func env(key, def string) string {
 	}
 	return def
 }
-

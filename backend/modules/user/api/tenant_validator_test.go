@@ -51,7 +51,7 @@ func TestTenantValidator_CrossTenantForbidden(t *testing.T) {
 	})
 
 	// Alice has a valid token
-	aliceToken, err := authn.IssueAccess(cfg, "user-alice", "tenant-a", "sess-1")
+	aliceToken, err := authn.IssueAccess(cfg, "user-alice", "tenant-a", "sess-1", "alice")
 	if err != nil {
 		t.Fatalf("failed to issue token: %v", err)
 	}
