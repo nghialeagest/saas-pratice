@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package note.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "saasbase/modules/note/api;api";
+
+service NoteService {
+  rpc CreateNote(CreateNoteRequest) returns (Note);
+  rpc GetNote(GetNoteRequest) returns (Note);
+  rpc ListNotes(ListNotesRequest) returns (ListNotesResponse);
+  rpc CountNotes(CountNotesRequest) returns (CountNotesResponse);
+  rpc PublishNote(PublishNoteRequest) returns (Note);
+}
+
+enum NoteStatus {
+  NOTE_STATUS_UNSPECIFIED = 0;
+  NOTE_STATUS_DRAFT = 1;
+  NOTE_STATUS_PUBLISHED = 2;
+}
+
+message Note {
+  string id = 1;
+  string title = 2;
+  NoteStatus status = 3;
+  google.protobuf.Timestamp created_at = 4;
+}
+
+message CreateNoteRequest {
+  string title = 1;
+  string body = 2;
+}
+
+message GetNoteRequest {
+  string id = 1;
+}
+
+message ListNotesRequest {
+  NoteStatus status = 1;
+  int32 page_size = 2;
+  int32 page = 3;
+}
+
+message ListNotesResponse {
+  repeated Note items = 1;
+  int64 total = 2;
+}
+
+message CountNotesRequest {
+  NoteStatus status = 1;
+}
+
+message CountNotesResponse {
+  int64 count = 1;
+}
+
+message PublishNoteRequest {
+  string id = 1;
+}

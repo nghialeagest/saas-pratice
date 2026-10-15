@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package note.event.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "saasbase/modules/note/event;event";
+
+message NotePublished {
+  string note_id = 1;
+  string tenant_id = 2;
+  google.protobuf.Timestamp published_at = 3;
+}

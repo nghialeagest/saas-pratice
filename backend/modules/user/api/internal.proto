@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package user.v1;
+
+import "modules/user/api/user.proto";
+
+option go_package = "saasbase/modules/user/api;api";
+
+service UserInternalService {
+  rpc CheckUserTenant(CheckUserTenantRequest) returns (CheckUserTenantResponse);
+  rpc ListUserTenants(ListUserTenantsRequest) returns (ListUserTenantsResponse);
+  rpc JoinTenant(JoinTenantRequest) returns (JoinTenantResponse);
+  rpc ProvisionTenantAdmin(ProvisionTenantAdminRequest) returns (User);
+}
+
+enum MembershipStatus {
+  MEMBERSHIP_STATUS_UNSPECIFIED = 0;
+  MEMBERSHIP_STATUS_ACTIVE = 1;
+  MEMBERSHIP_STATUS_INACTIVE = 2;
+}
+
+message CheckUserTenantRequest {
+  string user_id = 1;
+  string tenant_id = 2;
+}
+
+message CheckUserTenantResponse {
+  bool allowed = 1;
+}
+
+message TenantMembership {
+  string tenant_id = 1;
+  MembershipStatus status = 2;
+}
+
+message ListUserTenantsRequest {
+  string user_id = 1;
+}
+
+message ListUserTenantsResponse {
+  repeated TenantMembership items = 1;
+}
+
+message JoinTenantRequest {
+  string user_id = 1;
+  string tenant_id = 2;
+}
+
+message JoinTenantResponse {}
+
+message ProvisionTenantAdminRequest {
+  string tenant_id = 1;
+  string email = 2;
+  string username = 3;
+  string password = 4;
+}

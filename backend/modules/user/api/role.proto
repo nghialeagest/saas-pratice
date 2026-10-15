@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package user.v1;
+
+option go_package = "saasbase/modules/user/api;api";
+
+service RoleService {
+  rpc ListRoles(ListRolesRequest) returns (ListRolesResponse);
+  rpc CreateRole(CreateRoleRequest) returns (Role);
+  rpc DeleteRole(DeleteRoleRequest) returns (DeleteRoleResponse);
+}
+
+message Role {
+  string id = 1;
+  string name = 2;
+  bool preserved = 3;
+}
+
+message ListRolesRequest {}
+
+message ListRolesResponse {
+  repeated Role items = 1;
+}
+
+message CreateRoleRequest {
+  string name = 1;
+}
+
+message DeleteRoleRequest {
+  string id = 1;
+}
+
+message DeleteRoleResponse {}

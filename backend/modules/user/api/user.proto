@@ -1,0 +1,75 @@
+syntax = "proto3";
+
+package user.v1;
+
+import "google/protobuf/timestamp.proto";
+import "modules/user/api/role.proto";
+
+option go_package = "saasbase/modules/user/api;api";
+
+service UserService {
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+  rpc GetUser(GetUserRequest) returns (User);
+  rpc CreateUser(CreateUserRequest) returns (User);
+  rpc UpdateUser(UpdateUserRequest) returns (User);
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
+  rpc AssignRoles(AssignRolesRequest) returns (User);
+}
+
+enum Gender {
+  GENDER_UNSPECIFIED = 0;
+  GENDER_MALE = 1;
+  GENDER_FEMALE = 2;
+  GENDER_OTHER = 3;
+}
+
+message User {
+  string id = 1;
+  string username = 2;
+  string name = 3;
+  string email = 4;
+  bool email_confirmed = 5;
+  Gender gender = 6;
+  repeated Role roles = 7;
+  google.protobuf.Timestamp created_at = 8;
+}
+
+message ListUsersRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string search = 3;
+}
+
+message ListUsersResponse {
+  repeated User items = 1;
+  int64 total = 2;
+}
+
+message GetUserRequest {
+  string id = 1;
+}
+
+message CreateUserRequest {
+  string username = 1;
+  string email = 2;
+  string password = 3;
+  string name = 4;
+  Gender gender = 5;
+}
+
+message UpdateUserRequest {
+  string id = 1;
+  string name = 2;
+  Gender gender = 3;
+}
+
+message DeleteUserRequest {
+  string id = 1;
+}
+
+message DeleteUserResponse {}
+
+message AssignRolesRequest {
+  string user_id = 1;
+  repeated string role_ids = 2;
+}
